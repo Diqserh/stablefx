@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>StableFX</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/web3/4.3.0/web3.min.js"></script>
+<style>
+:root{--bg:#080a0a;--surface:#111313;--card:#161a1a;--card2:#1c2020;--border:#242828;--accent:#7fff00;--accent2:#00ffb3;--accent3:#ffe600;--blue:#4f8fff;--danger:#ff4060;--text:#f0f5f0;--muted:#55665a;--radius:22px;--radius-sm:14px}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-height:100vh;max-width:480px;margin:0 auto;padding-bottom:110px;overflow-x:hidden}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 10px}
+.profile{display:flex;align-items:center;gap:12px}
+.avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;box-shadow:0 0 16px rgba(127,255,0,0.3)}
+.greeting{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;line-height:1.2}
+.greeting span{color:var(--muted);font-size:11px;display:block;font-family:'DM Mono',monospace;font-weight:400;margin-top:2px}
+.topright{display:flex;align-items:center;gap:10px}
+.notif-btn{width:44px;height:44px;border-radius:50%;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:20px;position:relative}
+.notif-badge{position:absolute;top:8px;right:8px;width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 6px var(--accent)}
+.wallet-btn{background:var(--accent);color:#080a0a;border:none;padding:10px 22px;border-radius:99px;font-family:'Syne',sans-serif;font-weight:800;font-size:13px;cursor:pointer;transition:all 0.2s;box-shadow:0 4px 14px rgba(127,255,0,0.25)}
+.wallet-btn.connected{background:var(--accent2)}
+.balance-card{margin:12px 16px;background:linear-gradient(135deg,#0f1a0f,#0a1410);border-radius:var(--radius);padding:24px;border:1px solid #1a2a1a;position:relative;overflow:hidden;min-height:190px}
+.balance-card::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 40%,rgba(127,255,0,0.07),transparent 60%);pointer-events:none}
+#fxGlobe{position:absolute;top:-5px;right:-5px;width:195px;height:195px;opacity:0.92;pointer-events:none}
+.balance-content{position:relative;z-index:2;max-width:52%}
+.balance-label{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px}
+.balance-amount{font-family:'Syne',sans-serif;font-size:38px;font-weight:800;line-height:1;margin-bottom:5px}
+.balance-change{font-size:12px;color:var(--accent);margin-bottom:4px;font-weight:600}
+.wallet-addr{font-size:11px;color:var(--muted);margin-bottom:18px;display:flex;align-items:center;gap:6px;min-height:18px}
+.dot{width:7px;height:7px;background:var(--accent2);border-radius:50%;display:inline-block;animation:blink 2s infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.action-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.action-btn{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:11px 4px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:all 0.2s;font-size:10px;color:var(--text);letter-spacing:0.2px}
+.action-btn:active{background:var(--accent);color:#080a0a;border-color:var(--accent)}
+.action-icon{font-size:16px}
+.spend-card{margin:0 16px 16px;background:var(--card);border-radius:var(--radius-sm);padding:16px 20px;border:1px solid var(--border)}
+.spend-row{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:12px}
+.spend-label{font-size:10px;color:var(--muted);margin-bottom:4px;letter-spacing:0.5px}
+.spend-val{font-family:'Syne',sans-serif;font-weight:700;font-size:15px}
+.spend-val.right{color:var(--accent2)}
+.progress-bar{height:5px;background:var(--border);border-radius:99px;overflow:hidden}
+.progress-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width 1.2s ease;width:0%}
+.section{padding:0 16px;margin-bottom:22px}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.section-title{font-family:'Syne',sans-serif;font-weight:700;font-size:17px}
+.see-all{font-size:12px;color:var(--accent);cursor:pointer;background:none;border:none;font-family:'DM Mono',monospace}
+.pair-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}
+.pair-scroll::-webkit-scrollbar{display:none}
+.pair-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;min-width:145px;flex-shrink:0;cursor:pointer;transition:all 0.2s}
+.pair-card.active{border-color:var(--accent);background:var(--card2)}
+.pair-name{font-size:11px;color:var(--muted);margin-bottom:6px;letter-spacing:0.5px}
+.pair-rate{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:4px}
+.pair-change{font-size:11px;font-weight:600}
+.pair-change.up{color:var(--accent)}
+.pair-change.down{color:var(--danger)}
+.swap-card{margin:0 16px 20px;background:var(--card);border-radius:var(--radius);padding:22px;border:1px solid var(--border)}
+.swap-title{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;margin-bottom:16px}
+.swap-box{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px}
+.swap-box-label{font-size:10px;color:var(--muted);margin-bottom:8px;letter-spacing:1.5px;text-transform:uppercase}
+.swap-row{display:flex;align-items:center;gap:10px}
+.swap-input{flex:1;background:none;border:none;color:var(--text);font-family:'Syne',sans-serif;font-size:26px;font-weight:800;outline:none;width:100%;min-width:0}
+.swap-input::placeholder{color:var(--border)}
+.token-select{background:var(--border);border:none;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:8px 12px;border-radius:10px;cursor:pointer;outline:none;flex-shrink:0}
+.swap-arrow{display:flex;justify-content:center;margin:10px 0}
+.swap-arrow-btn{width:38px;height:38px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;font-size:20px;transition:transform 0.4s;box-shadow:0 4px 14px rgba(127,255,0,0.3)}
+.swap-arrow-btn:active{transform:rotate(180deg)}
+.fee-breakdown{background:var(--card2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;margin:10px 0;font-size:12px}
+.fee-row{display:flex;justify-content:space-between;padding:4px 0;color:var(--muted)}
+.fee-row span:last-child{color:var(--accent2)}
+.fee-row.total{color:var(--text);font-weight:700;border-top:1px solid var(--border);margin-top:6px;padding-top:8px}
+.fee-row.total span:last-child{color:var(--accent)}
+.btn-swap{width:100%;padding:16px;background:var(--accent);color:#080a0a;border:none;border-radius:var(--radius-sm);font-family:'Syne',sans-serif;font-weight:800;font-size:15px;cursor:pointer;margin-top:6px;box-shadow:0 4px 20px rgba(127,255,0,0.2)}
+.btn-swap:active{transform:scale(0.98)}
+.btn-swap:disabled{background:var(--border);color:var(--muted);cursor:not-allowed;box-shadow:none}
+.tx-filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-bottom:12px}
+.tx-filters::-webkit-scrollbar{display:none}
+.filter-btn{padding:7px 16px;border-radius:99px;border:1px solid var(--border);background:transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;white-space:nowrap;transition:all 0.2s;flex-shrink:0}
+.filter-btn.active{background:var(--accent);color:#080a0a;border-color:var(--accent);font-weight:700}
+.tx-list{display:flex;flex-direction:column;gap:10px}
+.tx-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;display:flex;align-items:center;gap:12px;transition:border-color 0.2s}
+.tx-item:active{border-color:var(--accent)}
+.tx-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;background:var(--card2);border:1px solid var(--border)}
+.tx-info{flex:1;min-width:0}
+.tx-name{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-time{font-size:11px;color:var(--muted)}
+.tx-amount{text-align:right;flex-shrink:0}
+.tx-val{font-family:'Syne',sans-serif;font-weight:700;font-size:14px}
+.tx-val.pos{color:var(--accent2)}
+.tx-val.neg{color:var(--danger)}
+.tx-type{font-size:10px;color:var(--muted);margin-top:2px}
+.bottomnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--card);border-top:1px solid var(--border);display:flex;justify-content:space-around;align-items:center;padding:10px 16px 24px;z-index:100}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:4px;background:none;border:none;color:var(--muted);font-family:'DM Mono',monospace;font-size:10px;cursor:pointer;padding:4px 10px;border-radius:12px}
+.nav-btn.active{color:var(--accent)}
+.nav-icon{font-size:21px;line-height:1}
+.nav-center{width:52px;height:52px;border-radius:50%;background:var(--accent);border:none;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;margin-top:-20px;box-shadow:0 4px 24px rgba(127,255,0,0.4)}
+.nav-center:active{transform:scale(0.92)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.88);backdrop-filter:blur(8px);z-index:500;display:none;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:var(--radius) var(--radius) 0 0;padding:24px 22px 40px;width:100%;max-width:480px}
+.modal-handle{width:36px;height:4px;background:var(--border);border-radius:99px;margin:0 auto 20px}
+.modal-title{font-family:'Syne',sans-serif;font-weight:800;font-size:20px;margin-bottom:20px;text-align:center}
+.toast{position:fixed;bottom:116px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--accent);padding:13px 20px;border-radius:var(--radius-sm);font-size:13px;max-width:320px;width:88%;z-index:999;display:none;text-align:center}
+.toast.show{display:block}
+.toast.error{border-color:var(--danger)}
+.toast.success{border-color:var(--accent2)}
+.spinner{display:inline-block;width:13px;height:13px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.7s linear infinite;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:36px 20px;color:var(--muted);font-size:13px}
+.empty .icon{font-size:40px;margin-bottom:10px}
+.field-label{font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+.field-input{width:100%;background:var(--card2);border:1px solid var(--border);color:var(--text);padding:13px;border-radius:var(--radius-sm);font-family:'DM Mono',monospace;font-size:13px;outline:none;margin-bottom:14px}
+.field-input:focus{border-color:var(--accent)}
+</style></head><body>
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="profile">
+    <div class="avatar">💱</div>
+    <div><div class="greeting">StableFX<span>Onchain FX Trading</span></div></div>
+  </div>
+  <div class="topright">
+    <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">Connect</button>
+    <div class="notif-btn" onclick="showNotifs()">🔔<div class="notif-badge"></div></div>
+  </div>
+</div>
+
+<!-- BALANCE CARD -->
+<div class="balance-card">
+  <canvas id="fxGlobe"></canvas>
+  <div class="balance-content">
+    <div class="balance-label">Total Portfolio Value</div>
+    <div class="balance-amount" id="portfolioVal">$0.00</div>
+    <div class="balance-change" id="portfolioChange">+0.00% today</div>
+    <div class="wallet-addr" id="walletAddr"><span>—</span></div>
+    <div class="action-btns">
+      <div class="action-btn" onclick="switchNav('swap')"><div class="action-icon">🔄</div>Swap</div>
+      <div class="action-btn" onclick="switchNav('history')"><div class="action-icon">📋</div>History</div>
+      <div class="action-btn" onclick="showDeposit()"><div class="action-icon">⬇️</div>Deposit</div>
+      <div class="action-btn" onclick="showWithdraw()"><div class="action-icon">⬆️</div>Withdraw</div>
+    </div>
+  </div>
+</div>
+
+<!-- SPEND CARD -->
+<div class="spend-card">
+  <div class="spend-row">
+    <div><div class="spend-label">Available to swap</div><div class="spend-val" id="availableSwap">—</div></div>
+    <div style="text-align:right"><div class="spend-label">Daily volume</div><div class="spend-val right" id="dailyVol">$24,500</div></div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<!-- HOME PAGE -->
+<div id="page-home">
+
+  <!-- RECENT TRANSACTIONS — right here below portfolio -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Recent Transactions</div>
+      <button class="see-all" onclick="switchNav('history')">See All</button>
+    </div>
+    <div class="tx-filters">
+      <button class="filter-btn active" onclick="filterTx('all',this)">All</button>
+      <button class="filter-btn" onclick="filterTx('swap',this)">Swap</button>
+      <button class="filter-btn" onclick="filterTx('send',this)">Sent</button>
+      <button class="filter-btn" onclick="filterTx('receive',this)">Received</button>
+    </div>
+    <div class="tx-list" id="txList"></div>
+  </div>
+
+  <!-- LIVE FX RATES -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Live FX Rates</div>
+      <button class="see-all" onclick="switchNav('rates')">See all</button>
+    </div>
+    <div class="pair-scroll" id="pairScroll"></div>
+  </div>
+
+  <!-- INSTANT SWAP -->
+  <div class="swap-card">
+    <div class="swap-title">⚡ Instant Swap</div>
+    <div class="swap-box">
+      <div class="swap-box-label">You Send</div>
+      <div class="swap-row">
+        <input class="swap-input" id="fromAmount" type="number" placeholder="0.00" oninput="calcSwap('a')"/>
+        <select class="token-select" id="fromToken" onchange="calcSwap('a')">
+          <option>USDC</option><option>USDT</option><option>EURC</option><option>GBPC</option>
+        </select>
+      </div>
+    </div>
+    <div class="swap-arrow"><button class="swap-arrow-btn" onclick="flipTokens('a')">⇅</button></div>
+    <div class="swap-box">
+      <div class="swap-box-label">You Receive</div>
+      <div class="swap-row">
+        <input class="swap-input" id="toAmount" placeholder="0.00" readonly/>
+        <select class="token-select" id="toToken" onchange="calcSwap('a')">
+          <option>EURC</option><option>USDC</option><option>USDT</option><option>GBPC</option>
+        </select>
+      </div>
+    </div>
+    <div class="fee-breakdown" id="feeBreakdown" style="display:none">
+      <div class="fee-row"><span>Rate</span><span id="feeRate">—</span></div>
+      <div class="fee-row"><span>Protocol (0.05%)</span><span id="feeProtocol">—</span></div>
+      <div class="fee-row"><span>Network fee</span><span>~$0.01</span></div>
+      <div class="fee-row"><span>Spread (0.02%)</span><span id="feeSpread">—</span></div>
+      <div class="fee-row total"><span>You Receive</span><span id="feeTotal">—</span></div>
+    </div>
+    <button class="btn-swap" id="swapBtn" onclick="executeSwap('a')">Connect Wallet to Swap</button>
+  </div>
+</div>
+
+<!-- RATES PAGE -->
+<div id="page-rates" style="display:none">
+  <div class="section">
+    <div class="section-header"><div class="section-title">All FX Pairs</div></div>
+    <div id="allRates" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+</div>
+
+<!-- HISTORY PAGE -->
+<div id="page-history" style="display:none">
+  <div class="section">
+    <div class="section-header"><div class="section-title">Transaction History</div></div>
+    <div class="tx-filters">
+      <button class="filter-btn active" onclick="filterTx('all',this)">All</button>
+      <button class="filter-btn" onclick="filterTx('swap',this)">Swap</button>
+      <button class="filter-btn" onclick="filterTx('send',this)">Sent</button>
+      <button class="filter-btn" onclick="filterTx('receive',this)">Received</button>
+    </div>
+    <div class="tx-list" id="txListFull"></div>
+  </div>
+</div>
+
+<!-- SWAP PAGE -->
+<div id="page-swap" style="display:none">
+  <div class="swap-card" style="margin:16px">
+    <div class="swap-title">🔄 FX Swap</div>
+    <div class="swap-box">
+      <div class="swap-box-label">You Send</div>
+      <div class="swap-row">
+        <input class="swap-input" id="fromAmount2" type="number" placeholder="0.00" oninput="calcSwap('b')"/>
+        <select class="token-select" id="fromToken2" onchange="calcSwap('b')">
+          <option>USDC</option><option>USDT</option><option>EURC</option><option>GBPC</option>
+        </select>
+      </div>
+    </div>
+    <div class="swap-arrow"><button class="swap-arrow-btn" onclick="flipTokens('b')">⇅</button></div>
+    <div class="swap-box">
+      <div class="swap-box-label">You Receive</div>
+      <div class="swap-row">
+        <input class="swap-input" id="toAmount2" placeholder="0.00" readonly/>
+        <select class="token-select" id="toToken2" onchange="calcSwap('b')">
+          <option>EURC</option><option>USDC</option><option>USDT</option><option>GBPC</option>
+        </select>
+      </div>
+    </div>
+    <div class="fee-breakdown" id="feeBreakdown2" style="display:none">
+      <div class="fee-row"><span>Rate</span><span id="feeRate2">—</span></div>
+      <div class="fee-row"><span>Protocol (0.05%)</span><span id="feeProtocol2">—</span></div>
+      <div class="fee-row"><span>Network fee</span><span>~$0.01</span></div>
+      <div class="fee-row"><span>Spread (0.02%)</span><span id="feeSpread2">—</span></div>
+      <div class="fee-row total"><span>You Receive</span><span id="feeTotal2">—</span></div>
+    </div>
+    <button class="btn-swap" id="swapBtn2" onclick="executeSwap('b')">Connect Wallet to Swap</button>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<div class="bottomnav">
+  <button class="nav-btn active" id="nav-home" onclick="switchNav('home')"><div class="nav-icon">🏠</div>Home</button>
+  <button class="nav-btn" id="nav-rates" onclick="switchNav('rates')"><div class="nav-icon">📈</div>Rates</button>
+  <button class="nav-center" onclick="switchNav('swap')">🔄</button>
+  <button class="nav-btn" id="nav-history" onclick="switchNav('history')"><div class="nav-icon">📋</div>History</button>
+  <button class="nav-btn" id="nav-swap" onclick="switchNav('swap')"><div class="nav-icon">💱</div>Swap</button>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modalTitle"></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+<script>
+let web3,account,currentFilter='all';
+const RATES={
+  'USDC/EURC':0.9245,'EURC/USDC':1.0817,
+  'USDC/GBPC':0.7923,'GBPC/USDC':1.2622,
+  'USDC/USDT':1.0001,'USDT/USDC':0.9999,
+  'EURC/GBPC':0.8571,'GBPC/EURC':1.1667,
+  'USDT/EURC':0.9244,'EURC/USDT':1.0818,
+  'USDT/GBPC':0.7922,'GBPC/USDT':1.2623
+};
+const PAIRS=[
+  {name:'USDC/EURC',change:'+0.12%',up:true,vol:'$2.4M'},
+  {name:'USDC/GBPC',change:'-0.08%',up:false,vol:'$1.8M'},
+  {name:'EURC/GBPC',change:'+0.21%',up:true,vol:'$980K'},
+  {name:'USDC/USDT',change:'+0.01%',up:true,vol:'$5.1M'},
+  {name:'GBPC/USDC',change:'+0.09%',up:true,vol:'$1.2M'},
+  {name:'EURC/USDC',change:'-0.11%',up:false,vol:'$2.1M'},
+  {name:'USDT/EURC',change:'+0.13%',up:true,vol:'$760K'},
+  {name:'GBPC/EURC',change:'+0.18%',up:true,vol:'$540K'}
+];
+const MOCK_TX=[
+  {id:1,type:'swap',from:'USDC',to:'EURC',amount:500,received:462.25,time:'10:30 AM',date:'Today',emoji:'🔄',hash:'0xabc123def456'},
+  {id:2,type:'receive',from:'EURC',to:'USDC',amount:200,received:216.34,time:'09:15 AM',date:'Today',emoji:'⬇️',hash:'0xdef456ghi789'},
+  {id:3,type:'swap',from:'USDC',to:'GBPC',amount:1000,received:792.30,time:'11:20 AM',date:'Apr 18',emoji:'🔄',hash:'0xghi789jkl012'},
+  {id:4,type:'send',from:'USDC',to:'USDC',amount:350,received:350,time:'2:00 PM',date:'Apr 18',emoji:'⬆️',hash:'0xjkl012mno345'},
+  {id:5,type:'swap',from:'GBPC',to:'EURC',amount:250,received:291.68,time:'11:45 AM',date:'Apr 17',emoji:'🔄',hash:'0xmno345pqr678'},
+  {id:6,type:'receive',from:'USDT',to:'USDT',amount:800,received:800,time:'08:30 AM',date:'Apr 17',emoji:'⬇️',hash:'0xpqr678stu901'},
+  {id:7,type:'swap',from:'EURC',to:'USDC',amount:300,received:324.51,time:'3:20 PM',date:'Apr 16',emoji:'🔄',hash:'0xstu901vwx234'},
+  {id:8,type:'send',from:'GBPC',to:'GBPC',amount:150,received:150,time:'1:10 PM',date:'Apr 16',emoji:'⬆️',hash:'0xvwx234yza567'}
+];
+let txData=[...MOCK_TX];
+
+function getRate(a,b){if(a===b)return 1;return RATES[a+'/'+b]||1;}
+
+function calcSwap(v){
+  const s=v==='b'?'2':'';
+  const amt=parseFloat(document.getElementById('fromAmount'+s).value)||0;
+  const from=document.getElementById('fromToken'+s).value;
+  const to=document.getElementById('toToken'+s).value;
+  const fb=document.getElementById('feeBreakdown'+s);
+  if(amt<=0){document.getElementById('toAmount'+s).value='';fb.style.display='none';return;}
+  const rate=getRate(from,to);
+  const gross=amt*rate;
+  const pFee=gross*0.0005;
+  const sFee=gross*0.0002;
+  const net=gross-pFee-sFee;
+  document.getElementById('toAmount'+s).value=net.toFixed(4);
+  document.getElementById('feeRate'+s).textContent='1 '+from+' = '+rate.toFixed(4)+' '+to;
+  document.getElementById('feeProtocol'+s).textContent=pFee.toFixed(4)+' '+to;
+  document.getElementById('feeSpread'+s).textContent=sFee.toFixed(4)+' '+to;
+  document.getElementById('feeTotal'+s).textContent=net.toFixed(4)+' '+to;
+  fb.style.display='block';
+}
+
+function flipTokens(v){
+  const s=v==='b'?'2':'';
+  const f=document.getElementById('fromToken'+s);
+  const t=document.getElementById('toToken'+s);
+  const tmp=f.value;f.value=t.value;t.value=tmp;
+  calcSwap(v);
+}
+
+async function connectWallet(){
+  if(!window.ethereum){showToast('⚠️ Use a Web3 browser','error');return;}
+  try{
+    const btn=document.getElementById('walletBtn');
+    btn.innerHTML='<span class="spinner"></span>';
+    const accounts=await window.ethereum.request({method:'eth_requestAccounts'});
+    account=accounts[0];
+    web3=new Web3(window.ethereum);
+    btn.textContent='Connected';
+    btn.classList.add('connected');
+    document.getElementById('walletAddr').innerHTML='<span class="dot"></span> '+account.slice(0,6)+'...'+account.slice(-4);
+    await loadPortfolio();
+    ['swapBtn','swapBtn2'].forEach(id=>{
+      const b=document.getElementById(id);
+      if(b)b.textContent='Swap Now ⚡';
+    });
+    showToast('✅ Wallet connected!','success');
+    window.ethereum.on('accountsChanged',a=>{account=a[0];loadPortfolio();});
+  }catch(e){
+    document.getElementById('walletBtn').textContent='Connect';
+    showToast('❌ '+e.message,'error');
+  }
+}
+
+async function loadPortfolio(){
+  try{
+    const bal=await web3.eth.getBalance(account);
+    const eth=parseFloat(web3.utils.fromWei(bal,'ether'));
+    const usd=(eth*3200).toFixed(2);
+    document.getElementById('portfolioVal').textContent='$'+parseFloat(usd).toLocaleString('en-US',{minimumFractionDigits:2});
+    document.getElementById('portfolioChange').textContent='+2.34% today';
+    document.getElementById('availableSwap').textContent='$'+parseFloat(usd).toLocaleString();
+    document.getElementById('progressFill').style.width=Math.min((eth/10)*100,100)+'%';
+  }catch(e){console.error(e);}
+}
+
+async function executeSwap(v){
+  if(!account){showToast('⚠️ Connect wallet first','error');return;}
+  const s=v==='b'?'2':'';
+  const amt=parseFloat(document.getElementById('fromAmount'+s).value)||0;
+  if(amt<=0){showToast('⚠️ Enter an amount','error');return;}
+  const from=document.getElementById('fromToken'+s).value;
+  const to=document.getElementById('toToken'+s).value;
+  if(from===to){showToast('⚠️ Select different tokens','error');return;}
+  const received=parseFloat(document.getElementById('toAmount'+s).value||0);
+  showToast('⚡ Processing swap...','');
+  setTimeout(()=>{
+    txData.unshift({
+      id:Date.now(),type:'swap',from,to,amount:amt,received,
+      time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}),
+      date:'Today',emoji:'🔄',hash:'0x'+Math.random().toString(16).slice(2,14)
+    });
+    renderTxList();
+    showToast('✅ Swap complete! '+received.toFixed(2)+' '+to+' received','success');
+    document.getElementById('fromAmount'+s).value='';
+    document.getElementById('toAmount'+s).value='';
+    document.getElementById('feeBreakdown'+s).style.display='none';
+  },1800);
+}
+
+function switchNav(page){
+  ['home','rates','history','swap'].forEach(p=>{
+    const pg=document.getElementById('page-'+p);
+    const nb=document.getElementById('nav-'+p);
+    if(pg)pg.style.display=p===page?'block':'none';
+    if(nb)nb.classList.toggle('active',p===page);
+  });
+  if(page==='rates')renderAllRates();
+  if(page==='history')renderTxList();
+}
+
+function filterTx(type,el){
+  currentFilter=type;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  renderTxList();
+}
+
+function renderTxList(){
+  const filtered=currentFilter==='all'?txData:txData.filter(t=>t.type===currentFilter);
+  const html=filtered.length===0
+    ?'<div class="empty"><div class="icon">📭</div><p>No transactions found</p></div>'
+    :filtered.map(tx=>{
+      const isPos=tx.type==='receive'||tx.type==='swap';
+      return `<div class="tx-item">
+        <div class="tx-avatar">${tx.emoji}</div>
+        <div class="tx-info">
+          <div class="tx-name">${tx.type==='swap'?tx.from+' → '+tx.to:tx.type==='send'?'Sent '+tx.from:'Received '+tx.to}</div>
+          <div class="tx-time">${tx.date} · ${tx.time}</div>
+        </div>
+        <div class="tx-amount">
+          <div class="tx-val ${isPos?'pos':'neg'}">${isPos?'+':'-'}${tx.received.toFixed(2)} ${tx.to}</div>
+          <div class="tx-type">${tx.amount.toFixed(2)} ${tx.from}</div>
+        </div>
+      </div>`;
+    }).join('');
+  const l1=document.getElementById('txList');
+  const l2=document.getElementById('txListFull');
+  if(l1)l1.innerHTML=html;
+  if(l2)l2.innerHTML=html;
+}
+
+function renderPairScroll(){
+  const el=document.getElementById('pairScroll');
+  if(!el)return;
+  el.innerHTML=PAIRS.slice(0,5).map((p,i)=>`
+    <div class="pair-card${i===0?' active':''}" onclick="selectPair('${p.name}',this)">
+      <div class="pair-name">${p.name}</div>
+      <div class="pair-rate">${(RATES[p.name]||1).toFixed(4)}</div>
+      <div class="pair-change ${p.up?'up':'down'}">${p.up?'▲':'▼'} ${p.change}</div>
+    </div>`).join('');
+}
+
+function renderAllRates(){
+  const el=document.getElementById('allRates');
+  if(!el)return;
+  el.innerHTML=PAIRS.map(p=>`
+    <div class="tx-item" onclick="prefillSwap('${p.name}')">
+      <div class="tx-avatar">💱</div>
+      <div class="tx-info">
+        <div class="tx-name">${p.name}</div>
+        <div class="tx-time">Vol: ${p.vol} · 24h</div>
+      </div>
+      <div class="tx-amount">
+        <div class="tx-val" style="color:${p.up?'var(--accent2)':'var(--danger)'}">${(RATES[p.name]||1).toFixed(4)}</div>
+        <div class="tx-type" style="color:${p.up?'var(--accent)':'var(--danger)'}">${p.up?'▲':'▼'} ${p.change}</div>
+      </div>
+    </div>`).join('');
+}
+
+function selectPair(name,el){
+  document.querySelectorAll('.pair-card').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  const[from,to]=name.split('/');
+  const f=document.getElementById('fromToken');
+  const t=document.getElementById('toToken');
+  for(let o of f.options)if(o.value===from)o.selected=true;
+  for(let o of t.options)if(o.value===to)o.selected=true;
+  calcSwap('a');
+}
+
+function prefillSwap(name){
+  const[from,to]=name.split('/');
+  switchNav('swap');
+  setTimeout(()=>{
+    const f=document.getElementById('fromToken2');
+    const t=document.getElementById('toToken2');
+    if(f&&t){
+      for(let o of f.options)if(o.value===from)o.selected=true;
+      for(let o of t.options)if(o.value===to)o.selected=true;
+    }
+  },100);
+}
+
+function showDeposit(){
+  document.getElementById('modalTitle').textContent='Deposit';
+  document.getElementById('modalBody').innerHTML=`
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:52px;margin-bottom:10px">⬇️</div>
+      <div style="color:var(--muted);font-size:13px;line-height:1.7">Send stablecoins to your connected wallet</div>
+    </div>
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:16px;text-align:center;margin-bottom:16px">
+      <div class="field-label" style="margin-bottom:8px">Your Wallet Address</div>
+      <div style="font-size:12px;word-break:break-all;color:var(--accent);line-height:1.6">${account||'Connect wallet first'}</div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);text-align:center;line-height:2">
+      Supported: USDC · USDT · EURC · GBPC<br/>Networks: Polygon · Base · Arbitrum
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function showWithdraw(){
+  document.getElementById('modalTitle').textContent='Withdraw';
+  document.getElementById('modalBody').innerHTML=`
+    <div class="field-label">Token</div>
+    <select class="field-input" style="cursor:pointer">
+      <option>USDC</option><option>USDT</option><option>EURC</option><option>GBPC</option>
+    </select>
+    <div class="field-label">Amount</div>
+    <input class="field-input" placeholder="0.00" type="number" style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800"/>
+    <div class="field-label">Recipient Address</div>
+    <input class="field-input" placeholder="0x..."/>
+    <button class="btn-swap" onclick="showToast('✅ Withdrawal submitted!','success');closeModal()">Withdraw ⬆️</button>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function showNotifs(){
+  document.getElementById('modalTitle').textContent='Notifications';
+  document.getElementById('modalBody').innerHTML=`
+    <div class="tx-list">
+      <div class="tx-item"><div class="tx-avatar">✅</div><div class="tx-info"><div class="tx-name">Swap Complete</div><div class="tx-time">USDC → EURC · 462.25 received</div></div></div>
+      <div class="tx-item"><div class="tx-avatar">📈</div><div class="tx-info"><div class="tx-name">Rate Alert</div><div class="tx-time">USDC/GBPC moved +0.5%</div></div></div>
+      <div class="tx-item"><div class="tx-avatar">⚡</div><div class="tx-info"><div class="tx-name">Instant Settlement</div><div class="tx-time">Last swap settled in 1.2s</div></div></div>
+    </div>`;
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal(){document.getElementById('modalOverlay').classList.remove('open');}
+
+function showToast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show'+(type==='error'?' error':type==='success'?' success':'');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+setInterval(()=>{
+  Object.keys(RATES).forEach(k=>{RATES[k]=parseFloat((RATES[k]+(Math.random()-0.5)*0.0003).toFixed(6));});
+  renderPairScroll();
+},30000);
+
+// 3D GLOBE
+(function init3D(){
+  const canvas=document.getElementById('fxGlobe');
+  if(!canvas||typeof THREE==='undefined')return;
+  const W=195,H=195;
+  const renderer=new THREE.WebGLRenderer({canvas,alpha:true,antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+  renderer.setSize(W,H);
+  renderer.setClearColor(0x000000,0);
+  const scene=new THREE.Scene();
+  const camera=new THREE.PerspectiveCamera(42,1,0.1,100);
+  camera.position.set(0,0,4.0);
+  scene.add(new THREE.AmbientLight(0xffffff,0.25));
+  const pl1=new THREE.PointLight(0x7fff00,2.5,12);pl1.position.set(3,3,4);scene.add(pl1);
+  const pl2=new THREE.PointLight(0x00ffb3,1.8,12);pl2.position.set(-3,-2,3);scene.add(pl2);
+  const pl3=new THREE.PointLight(0x4f8fff,1.2,10);pl3.position.set(2,-3,-2);scene.add(pl3);
+  const globe=new THREE.Mesh(
+    new THREE.SphereGeometry(1,64,64),
+    new THREE.MeshPhongMaterial({color:0x0a1a0a,emissive:0x051005,shininess:150,transparent:true,opacity:0.97})
+  );
+  scene.add(globe);
+  const wire=new THREE.Mesh(
+    new THREE.SphereGeometry(1.02,28,28),
+    new THREE.MeshBasicMaterial({color:0x7fff00,wireframe:true,transparent:true,opacity:0.07})
+  );
+  scene.add(wire);
+  scene.add(new THREE.Mesh(
+    new THREE.SphereGeometry(1.18,32,32),
+    new THREE.MeshBasicMaterial({color:0x7fff00,transparent:true,opacity:0.03,side:THREE.BackSide})
+  ));
+  function ring(r,color,op,rx,rz){
+    const m=new THREE.Mesh(
+      new THREE.TorusGeometry(r,0.013,16,120),
+      new THREE.MeshBasicMaterial({color,transparent:true,opacity:op})
+    );
+    m.rotation.x=rx;m.rotation.z=rz;scene.add(m);return m;
+  }
+  const r1=ring(1.32,0x7fff00,0.95,Math.PI/2,0);
+  const r2=ring(1.52,0x00ffb3,0.65,Math.PI/3,Math.PI/7);
+  const r3=ring(1.72,0x4f8fff,0.45,Math.PI/5,Math.PI/4);
+  const r4=ring(1.90,0xffe600,0.25,Math.PI/4,-Math.PI/5);
+  const orbs=[];
+  [{color:0x7fff00,r:1.52,speed:0.009,phase:0},
+   {color:0x00ffb3,r:1.72,speed:0.007,phase:Math.PI/2},
+   {color:0xffe600,r:1.52,speed:0.011,phase:Math.PI},
+   {color:0x4f8fff,r:1.72,speed:0.006,phase:Math.PI*1.5}
+  ].forEach(d=>{
+    const o=new THREE.Mesh(
+      new THREE.SphereGeometry(0.09,16,16),
+      new THREE.MeshPhongMaterial({color:d.color,emissive:d.color,emissiveIntensity:0.6,shininess:200})
+    );
+    scene.add(o);orbs.push({mesh:o,...d,angle:d.phase});
+  });
+  const pGeo=new THREE.BufferGeometry();
+  const pPos=new Float32Array(180*3);
+  for(let i=0;i<180*3;i++)pPos[i]=(Math.random()-0.5)*7;
+  pGeo.setAttribute('position',new THREE.BufferAttribute(pPos,3));
+  scene.add(new THREE.Points(pGeo,new THREE.PointsMaterial({color:0x7fff00,size:0.022,transparent:true,opacity:0.45})));
+  let t=0;
+  (function animate(){
+    requestAnimationFrame(animate);
+    t+=0.012;
+    globe.rotation.y+=0.005;
+    globe.rotation.x=Math.sin(t*0.25)*0.08;
+    wire.rotation.y+=0.005;
+    r1.rotation.z+=0.007;
+    r2.rotation.x+=0.004;r2.rotation.y+=0.003;
+    r3.rotation.y-=0.005;r3.rotation.z+=0.002;
+    r4.rotation.x-=0.003;r4.rotation.z-=0.004;
+    orbs.forEach(o=>{
+      o.angle+=o.speed;
+      o.mesh.position.set(Math.cos(o.angle)*o.r,Math.sin(o.angle*1.3)*0.45,Math.sin(o.angle)*o.r);
+      o.mesh.scale.setScalar(0.88+Math.sin(o.angle*2.5)*0.18);
+    });
+    pl1.intensity=2.2+Math.sin(t*1.2)*0.5;
+    pl2.intensity=1.6+Math.sin(t*0.9)*0.4;
+    renderer.render(scene,camera);
+  })();
+})();
+
+// BOOT
+window.addEventListener('load',function(){
+  renderPairScroll();
+  renderTxList();
+});
+</script>
+</body></html>
