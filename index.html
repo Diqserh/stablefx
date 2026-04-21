@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/4.3.0/web3.min.js"></script>
+<script type="module" src="walletconnect.js"></script>
 <style>
 :root{--bg:#080a0a;--surface:#111313;--card:#161a1a;--card2:#1c2020;--border:#242828;--accent:#7fff00;--accent2:#00ffb3;--accent3:#ffe600;--blue:#4f8fff;--danger:#ff4060;--text:#f0f5f0;--muted:#55665a;--radius:22px;--radius-sm:14px}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -120,7 +121,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;min-
     <div><div class="greeting">StableFX<span>Onchain FX Trading</span></div></div>
   </div>
   <div class="topright">
-    <button class="wallet-btn" id="walletBtn" onclick="connectWallet()">Connect</button>
+    <button class="wallet-btn" id="walletBtn" onclick="openWalletModal()">Connect</button>
     <div class="notif-btn" onclick="showNotifs()">🔔<div class="notif-badge"></div></div>
   </div>
 </div>
@@ -647,3 +648,15 @@ window.addEventListener('load',function(){
 });
 </script>
 </body></html>
+<script>
+// Fallback for browsers with window.ethereum
+if (window.ethereum) {
+  window.web3 = new Web3(window.ethereum);
+}
+// Also init web3 when WalletConnect connects
+window.addEventListener('message', function(e) {
+  if (e.data && e.data.type === 'wc_connected') {
+    if (window.ethereum) window.web3 = new Web3(window.ethereum);
+  }
+});
+</script>
