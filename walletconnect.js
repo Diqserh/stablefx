@@ -7,7 +7,7 @@ const projectId = '910f7a5fc823c671ef990ea38fe5cf94';
 const metadata = {
   name: 'StableFX',
   description: 'Onchain Stablecoin FX Trading',
-  url: window.location.origin,
+  url: "stablefx-production-2907.up.railway.app",
   icons: ['https://avatars.githubusercontent.com/u/37784886']
 };
 
