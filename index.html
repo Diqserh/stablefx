@@ -740,3 +740,101 @@ function walletGone(){
   showToast('👋 Disconnected','');
 }
 </script>
+<script>
+// Override executeSwap to check real account
+const _origExecuteSwap = window.executeSwap;
+window.executeSwap = async function(v) {
+  if(!window.account || !window.web3) {
+    showToast('⚠️ Connect wallet first','error');
+    connectWallet();
+    return;
+  }
+  const s=v==='b'?'2':'';
+  const amt=parseFloat(document.getElementById('fromAmount'+s).value)||0;
+  if(amt<=0){showToast('⚠️ Enter an amount','error');return;}
+  const from=document.getElementById('fromToken'+s).value;
+  const to=document.getElementById('toToken'+s).value;
+  if(from===to){showToast('⚠️ Select different tokens','error');return;}
+  const received=parseFloat(document.getElementById('toAmount'+s).value||0);
+  showToast('⚡ Processing swap...','');
+  setTimeout(()=>{
+    txData.unshift({
+      id:Date.now(),type:'swap',from,to,amount:amt,received,
+      time:new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}),
+      date:'Today',emoji:'🔄',
+      hash:'0x'+Math.random().toString(16).slice(2,14)
+    });
+    renderTxList();
+    showToast('✅ Swap complete! '+received.toFixed(2)+' '+to+' received','success');
+    document.getElementById('fromAmount'+s).value='';
+    document.getElementById('toAmount'+s).value='';
+    document.getElementById('feeBreakdown'+s).style.display='none';
+  },1800);
+};
+
+// Fix connectWallet to properly set account
+async function connectWallet(){
+  const btn=document.getElementById('walletBtn');
+  btn.innerHTML='<span class="spinner"></span>';
+  try{
+    if(window.ethereum){
+      const accs=await window.ethereum.request({method:'eth_requestAccounts'});
+      window.web3=new Web3(window.ethereum);
+      window.account=accs[0];
+      walletReady(accs[0]);
+      window.ethereum.on('accountsChanged',a=>{
+        if(a.length){window.account=a[0];walletReady(a[0]);}
+        else walletGone();
+      });
+      return;
+    }
+    btn.textContent='Connect';
+    document.getElementById('modalTitle').textContent='Connect Wallet';
+    document.getElementById('modalBody').innerHTML=`
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <a href="https://metamask.app.link/dapp/${window.location.host}"
+           style="display:flex;align-items:center;gap:14px;background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:16px;text-decoration:none;color:var(--text)">
+          <span style="font-size:32px">🦊</span>
+          <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px">MetaMask</div>
+          <div style="font-size:11px;color:var(--muted)">Open in MetaMask browser</div></div>
+        </a>
+        <a href="https://link.trustwallet.com/open_url?coin_id=60&url=${encodeURIComponent(window.location.href)}"
+           style="display:flex;align-items:center;gap:14px;background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:16px;text-decoration:none;color:var(--text)">
+          <span style="font-size:32px">🛡️</span>
+          <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px">Trust Wallet</div>
+          <div style="font-size:11px;color:var(--muted)">Open in Trust Wallet browser</div></div>
+        </a>
+        <a href="https://go.cb-w.com/dapp?cb_url=${encodeURIComponent(window.location.href)}"
+           style="display:flex;align-items:center;gap:14px;background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:16px;text-decoration:none;color:var(--text)">
+          <span style="font-size:32px">💙</span>
+          <div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:15px">Coinbase Wallet</div>
+          <div style="font-size:11px;color:var(--muted)">Open in Coinbase Wallet browser</div></div>
+        </a>
+        <div style="background:var(--card2);border:1px solid var(--accent);border-radius:10px;padding:12px;font-size:11px;color:var(--accent);word-break:break-all;text-align:center">
+          ${window.location.href}
+        </div>
+        <div style="text-align:center;font-size:11px;color:var(--muted)">
+          Copy URL and paste into your wallet browser
+        </div>
+      </div>`;
+    document.getElementById('modalOverlay').classList.add('open');
+  }catch(e){
+    btn.textContent='Connect';
+    showToast('❌ '+e.message,'error');
+  }
+}
+
+// Check if already connected on page load
+window.addEventListener('load', async function(){
+  if(window.ethereum){
+    try{
+      const accs = await window.ethereum.request({method:'eth_accounts'});
+      if(accs.length > 0){
+        window.web3 = new Web3(window.ethereum);
+        window.account = accs[0];
+        walletReady(accs[0]);
+      }
+    }catch(e){console.error(e);}
+  }
+});
+</script>
