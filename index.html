@@ -648,7 +648,7 @@ window.addEventListener('load',function(){
 });
 </script>
 
-<script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+
 <script>
 const WC_PROJECT_ID = '910f7a5fc823c671ef990ea38fe5cf94';
 
@@ -744,6 +744,80 @@ function onWalletDisconnected() {
     if (b) b.textContent = 'Connect Wallet to Swap';
   });
   showToast('👋 Wallet disconnected', '');
+}
+</script>
+
+<script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+<script>
+async function connectWallet(){
+  const btn=document.getElementById('walletBtn');
+  btn.innerHTML='<span class="spinner"></span>';
+  try{
+    // Case 1: MetaMask or injected wallet
+    if(window.ethereum){
+      const accs=await window.ethereum.request({method:'eth_requestAccounts'});
+      window.web3=new Web3(window.ethereum);
+      window.account=accs[0];
+      walletReady(accs[0]);
+      return;
+    }
+    // Case 2: WalletConnect QR
+    const wcp=new WalletConnectProvider.default({
+      rpc:{
+        1:'https://cloudflare-eth.com',
+        137:'https://polygon-rpc.com',
+        8453:'https://mainnet.base.org'
+      },
+      qrcode:true,
+      qrcodeModalOptions:{mobileLinks:['metamask','trust','rainbow','coinbase']}
+    });
+    await wcp.enable();
+    window.web3=new Web3(wcp);
+    const accs=await window.web3.eth.getAccounts();
+    window.account=accs[0];
+    walletReady(accs[0]);
+    wcp.on('accountsChanged',a=>{window.account=a[0];walletReady(a[0]);});
+    wcp.on('disconnect',walletGone);
+  }catch(e){
+    btn.textContent='Connect';
+    showToast('❌ '+e.message,'error');
+  }
+}
+
+function walletReady(addr){
+  const btn=document.getElementById('walletBtn');
+  btn.textContent='Connected';
+  btn.classList.add('connected');
+  document.getElementById('walletAddr').innerHTML='<span class="dot"></span> '+addr.slice(0,6)+'...'+addr.slice(-4);
+  ['swapBtn','swapBtn2'].forEach(id=>{
+    const b=document.getElementById(id);
+    if(b)b.textContent='Swap Now ⚡';
+  });
+  showToast('✅ Wallet connected!','success');
+  window.web3.eth.getBalance(addr).then(bal=>{
+    const eth=parseFloat(window.web3.utils.fromWei(bal,'ether'));
+    const usd=(eth*3200).toFixed(2);
+    const pv=document.getElementById('portfolioVal');
+    const av=document.getElementById('availableSwap');
+    const pc=document.getElementById('portfolioChange');
+    const pf=document.getElementById('progressFill');
+    if(pv)pv.textContent='$'+parseFloat(usd).toLocaleString('en-US',{minimumFractionDigits:2});
+    if(av)av.textContent='$'+parseFloat(usd).toLocaleString();
+    if(pc)pc.textContent='+2.34% today';
+    if(pf)pf.style.width=Math.min((eth/10)*100,100)+'%';
+  }).catch(console.error);
+}
+
+function walletGone(){
+  window.account=null;
+  const btn=document.getElementById('walletBtn');
+  if(btn){btn.textContent='Connect';btn.classList.remove('connected');}
+  document.getElementById('walletAddr').innerHTML='<span>—</span>';
+  ['swapBtn','swapBtn2'].forEach(id=>{
+    const b=document.getElementById(id);
+    if(b)b.textContent='Connect Wallet to Swap';
+  });
+  showToast('👋 Disconnected','');
 }
 </script>
 </body></html>
