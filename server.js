@@ -6,7 +6,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(express.static(__dirname));
 
-const KIT_KEY = 'f8660bfb34f5dcc0699cc84f56702569:e9e7345e7bf13e9dec1eb4d00262e92f';
+const KIT_KEY = process.env.KIT_KEY || 'f8660bfb34f5dcc0699cc84f56702569:e9e7345e7bf13e9dec1eb4d00262e92f';
 
 // FX Rates API
 app.get('/api/rates', (req, res) => {
